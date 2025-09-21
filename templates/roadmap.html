@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ roadmap.title }} - EduMentor AI</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --primary-color: #6a5acd; --background-color: #f0f2f5; --text-color: #333; --card-bg: #ffffff; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--background-color); margin: 0; }
+        .page-layout { display: flex; height: 100vh; }
+        .roadmap-panel { flex: 3; padding: 40px; overflow-y: auto; }
+        .roadmap-panel h1 { font-size: 36px; margin-top: 0; }
+        .roadmap-step { background: var(--card-bg); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .roadmap-step h3 { margin-top: 0; color: var(--primary-color); }
+        .jobs-section { margin-top: 40px; }
+        .jobs-section h2 { font-size: 24px; }
+        .job-tags { display: flex; flex-wrap: wrap; gap: 10px; }
+        .job-tag { background-color: #e2dffc; color: var(--primary-color); padding: 8px 15px; border-radius: 20px; font-weight: 500; }
+        .mentor-panel { flex: 2; background-color: #202124; color: #e8eaed; display: flex; flex-direction: column; }
+        .mentor-header { padding: 20px; background-color: #303134; text-align: center; font-size: 20px; font-weight: 600; }
+        .mentor-chatbox { flex-grow: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
+        .bot-message { background: #3c4043; padding: 10px 15px; border-radius: 12px; margin-bottom: 10px; max-width: 90%; align-self: flex-start; }
+        .user-message { background: #525355; padding: 10px 15px; border-radius: 12px; margin-bottom: 10px; max-width: 90%; align-self: flex-end; }
+        .mentor-input-form { display: flex; padding: 15px; border-top: 1px solid #5f6368; }
+        .mentor-input-form input { flex-grow: 1; background: #525355; border: 1px solid #5f6368; color: #e8eaed; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .mentor-input-form button { background: none; border: none; color: #8ab4f8; font-size: 20px; cursor: pointer; padding: 0 10px; margin-left: 5px; }
+        .loader { border: 3px solid #5f6368; border-radius: 50%; border-top: 3px solid #8ab4f8; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="page-layout">
+        <div class="roadmap-panel">
+            <h1>{{ roadmap.title }}</h1>
+            <p>{{ roadmap.description }}</p>
+            {% if roadmap.steps %}
+                {% for step in roadmap.steps %}
+                    <div class="roadmap-step">
+                        <h3>{{ step.title }}</h3>
+                        <p>{{ step.description }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p>Roadmap coming soon for this course!</p>
+            {% endif %}
+            {% if roadmap.jobs %}
+            <div class="jobs-section">
+                <h2>Potential Career Roles</h2>
+                <div class="job-tags">
+                    {% for job in roadmap.jobs %}
+                        <span class="job-tag">{{ job }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <div class="mentor-panel">
+            <div class="mentor-header">Your AI Mentor</div>
+            <div class="mentor-chatbox" id="mentor-chatbox">
+                <div class="bot-message">Hello! Ask me any questions about {{ roadmap.title }}.</div>
+            </div>
+            <form class="mentor-input-form" id="mentor-form">
+                <input type="text" id="mentor-input" placeholder="Ask a question..." autocomplete="off">
+                <button type="submit">&#10148;</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const mentorForm = document.getElementById('mentor-form');
+            const mentorInput = document.getElementById('mentor-input');
+            const mentorChatbox = document.getElementById('mentor-chatbox');
+            const courseTitle = "{{ roadmap.title }}";
+
+            mentorForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const question = mentorInput.value.trim();
+                if (!question) return;
+
+                // This line adds the user's message to the interface
+                addUserMessage(question);
+                
+                mentorInput.value = '';
+                const loadingMessage = addBotMessage('<div class="loader"></div>');
+                
+                fetch('/mentor-chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question, course_title: courseTitle })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    loadingMessage.innerHTML = marked.parse(data.answer || "Sorry, an error occurred.");
+                })
+                .catch(error => {
+                    loadingMessage.innerHTML = '<p style="color:red;">Error connecting to the server.</p>';
+                    console.error('Error:', error);
+                });
+            });
+
+            function addUserMessage(text) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'user-message';
+                messageDiv.textContent = text;
+                mentorChatbox.appendChild(messageDiv);
+                mentorChatbox.scrollTop = mentorChatbox.scrollHeight;
+            }
+
+            function addBotMessage(htmlContent) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'bot-message';
+                messageDiv.innerHTML = htmlContent;
+                mentorChatbox.appendChild(messageDiv);
+                mentorChatbox.scrollTop = mentorChatbox.scrollHeight;
+                return messageDiv;
+            }
+        });
+    </script>
+</body>
+</html>

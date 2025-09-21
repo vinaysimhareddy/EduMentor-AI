@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduMentor AI Chat</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <style>
+        /* ... (all CSS is unchanged) ... */
+        :root {
+            --primary-color: #8ab4f8; --background-color: #202124; --text-color: #e8eaed;
+            --sidebar-bg: #303134; --main-bg: #202124; --user-bubble: #3c4043;
+            --bot-bubble: #303134; --border-color: #5f6368; --code-bg: #282c34;
+            --border-radius: 18px;
+        }
+        body, html { font-family: "Google Sans", Roboto, Helvetica, Arial, sans-serif; background-color: var(--background-color); color: var(--text-color); margin: 0; height: 100%; overflow: hidden; }
+        .app-layout { display: flex; height: 100%; }
+        .sidebar { width: 260px; background-color: var(--sidebar-bg); padding: 15px; display: flex; flex-direction: column; transition: width 0.3s; border-right: 1px solid var(--border-color); }
+        .sidebar.hidden { width: 0; padding: 15px 0; overflow: hidden; }
+        .new-chat-btn { background-color: var(--primary-color); color: var(--background-color); border: none; padding: 12px; border-radius: var(--border-radius); cursor: pointer; font-size: 16px; font-weight: 500; margin-bottom: 20px; white-space: nowrap; text-align: center; }
+        .history-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .history-item { padding: 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-item:hover { background-color: #444; }
+        .history-item.active { background-color: var(--user-bubble); }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; height: 100%; position: relative; }
+        .chat-header { display: flex; align-items: center; padding: 10px; background-color: var(--main-bg); }
+        .menu-btn { background: none; border: none; color: var(--text-color); font-size: 24px; cursor: pointer; padding: 5px 15px; }
+        .chat-container { flex-grow: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
+        .chat-message { max-width: 80%; padding: 12px 18px; border-radius: var(--border-radius); margin-bottom: 12px; line-height: 1.6; }
+        .user-message { background-color: var(--user-bubble); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .bot-message { background-color: var(--bot-bubble); align-self: flex-start; border-bottom-left-radius: 4px; }
+        .chat-form { display: flex; padding: 15px; border-top: 1px solid var(--border-color); align-items: center; }
+        .chat-form input[type="text"] { flex-grow: 1; background-color: #3c4043; border: 1px solid var(--border-color); padding: 14px; border-radius: var(--border-radius); font-size: 16px; color: var(--text-color); }
+        .chat-form button { background-color: transparent; color: var(--primary-color); border: none; padding: 0 15px; cursor: pointer; font-size: 24px; }
+        .upload-btn { margin-right: 5px; } /* NEW */
+        input[type="file"] { display: none; } /* NEW */
+        pre { position: relative; }
+        .copy-btn { position: absolute; top: 10px; right: 10px; background-color: #444; color: #fff; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; opacity: 0.7; }
+        .copy-btn:hover { opacity: 1; }
+        .loader { border: 3px solid #5f6368; border-radius: 50%; border-top: 3px solid var(--primary-color); width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <div class="sidebar" id="sidebar">
+            <button class="new-chat-btn" id="new-chat-btn">➕ New Chat</button>
+            <ul class="history-list" id="history-list"></ul>
+        </div>
+        <div class="main-content">
+            <div class="chat-header">
+                <button class="menu-btn" id="menu-btn">☰</button>
+                <span>EduMentor AI</span>
+            </div>
+            <div class="chat-container" id="chat-container"></div>
+            <form class="chat-form" id="chat-form">
+                <button type="button" class="upload-btn" id="upload-btn" title="Upload PDF">📎</button>
+                <input type="file" id="file-input" accept=".pdf">
+
+                <input type="text" id="chat-input" placeholder="Enter a prompt or upload a PDF..." autocomplete="off">
+                <button type="submit">➤</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const uploadBtn = document.getElementById('upload-btn');
+            const fileInput = document.getElementById('file-input');
+            // ... (other element selectors are unchanged) ...
+            const chatContainer = document.getElementById('chat-container');
+            const chatForm = document.getElementById('chat-form');
+            const chatInput = document.getElementById('chat-input');
+            const sidebar = document.getElementById('sidebar');
+            const menuBtn = document.getElementById('menu-btn');
+            const newChatBtn = document.getElementById('new-chat-btn');
+            const historyList = document.getElementById('history-list');
+            let appState = { activeChatId: null, conversations: {} };
+
+            // --- NEW: Event listeners for file uploading ---
+            uploadBtn.addEventListener('click', () => {
+                fileInput.click(); // Trigger the hidden file input
+            });
+
+            fileInput.addEventListener('change', (event) => {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                addUserMessage(`Uploading file: ${file.name}`);
+                
+                const formData = new FormData();
+                formData.append('pdf_file', file);
+                
+                const botMessageDiv = addBotMessage('', true); // Add a loading message
+                
+                fetch('/summarize-pdf', {
+                    method: 'POST',
+                    body: formData, // When using FormData, browser sets the Content-Type header
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const responseText = data.summary || `Error: ${data.error}`;
+                    botMessageDiv.innerHTML = marked.parse(responseText);
+                    appState.conversations[appState.activeChatId].push({ sender: 'bot', text: responseText });
+                    saveState();
+                    highlightCode(botMessageDiv);
+                });
+
+                fileInput.value = ''; // Reset the input so you can upload the same file again
+            });
+
+            // ... (all other JavaScript functions and event listeners are unchanged) ...
+            function saveState() { /* ... */ }
+            function loadApp() { /* ... */ }
+            function startNewChat(shouldRender = true) { /* ... */ }
+            function switchChat(chatId) { /* ... */ }
+            function renderHistoryList() { /* ... */ }
+            function renderChat(chatId) { /* ... */ }
+            function addUserMessage(message, shouldSave = true) { /* ... */ }
+            function addBotMessage(message, isLoading = false) { /* ... */ }
+            menuBtn.addEventListener('click', () => sidebar.classList.toggle('hidden'));
+            newChatBtn.addEventListener('click', () => startNewChat());
+            chatForm.addEventListener('submit', (e) => { /* ... */ });
+            function callApi(endpoint, payload) { /* ... */ }
+            function highlightCode(element) { /* ... */ }
+            
+            // --- Pasting the full, unchanged JS functions for completeness ---
+            function saveState() { localStorage.setItem('eduMentorAppState', JSON.stringify(appState)); }
+            function loadApp() {
+                const savedState = localStorage.getItem('eduMentorAppState');
+                if (savedState) { appState = JSON.parse(savedState); }
+                startNewChat(false);
+                renderHistoryList();
+                renderChat(appState.activeChatId);
+            }
+            function startNewChat(shouldRender = true) {
+                const newChatId = `chat-${Date.now()}`;
+                appState.activeChatId = newChatId;
+                appState.conversations[newChatId] = [{ sender: 'bot', text: "Hello! How can I help you today?", isNew: true }];
+                if (shouldRender) {
+                    renderHistoryList();
+                    renderChat(newChatId);
+                }
+            }
+            function switchChat(chatId) {
+                appState.activeChatId = chatId;
+                renderHistoryList();
+                renderChat(chatId);
+            }
+            function renderHistoryList() {
+                historyList.innerHTML = '';
+                Object.keys(appState.conversations).forEach(chatId => {
+                    const conversation = appState.conversations[chatId];
+                    if (conversation[0]?.isNew) return;
+                    const firstUserMessage = conversation.find(msg => msg.sender === 'user');
+                    const title = firstUserMessage ? firstUserMessage.text : 'Chat History';
+                    const listItem = document.createElement('li');
+                    listItem.className = 'history-item';
+                    listItem.textContent = title;
+                    listItem.dataset.chatId = chatId;
+                    if (chatId === appState.activeChatId) { listItem.classList.add('active'); }
+                    listItem.onclick = () => switchChat(chatId);
+                    historyList.prepend(listItem);
+                });
+            }
+            function renderChat(chatId) {
+                chatContainer.innerHTML = '';
+                const conversation = appState.conversations[chatId] || [];
+                conversation.forEach(message => {
+                    const messageText = message.text;
+                    if (message.sender === 'user') { addUserMessage(messageText, false); } 
+                    else { addBotMessage(messageText, false); }
+                });
+            }
+            function addUserMessage(message, shouldSave = true) {
+                if (shouldSave) {
+                    const currentChat = appState.conversations[appState.activeChatId];
+                    const isFirstUserMessage = currentChat[0]?.isNew === true;
+                    currentChat.push({ sender: 'user', text: message });
+                    if (isFirstUserMessage) {
+                        delete currentChat[0].isNew;
+                        renderHistoryList();
+                    }
+                    saveState();
+                }
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'chat-message user-message';
+                messageDiv.textContent = message;
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            }
+            function addBotMessage(message, isLoading = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'chat-message bot-message';
+                if (isLoading) { messageDiv.innerHTML = '<div class="loader"></div>'; } 
+                else {
+                    messageDiv.innerHTML = marked.parse(message);
+                    highlightCode(messageDiv);
+                }
+                chatContainer.appendChild(messageDiv);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+                return messageDiv;
+            }
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const userInput = chatInput.value.trim();
+                if (!userInput) return;
+                addUserMessage(userInput);
+                chatInput.value = '';
+                const lowerCaseInput = userInput.toLowerCase();
+                if (userInput.split(' ').length > 30) { callApi('/summarize', { text: userInput }); } 
+                else if (lowerCaseInput.includes('career') || lowerCaseInput.includes('skills')) { callApi('/brainstorm-career', { skills: userInput }); } 
+                else if (lowerCaseInput.includes('course') || lowerCaseInput.includes('learn') || lowerCaseInput.includes('grade')) { callApi('/recommend-courses', { grade: "user's grade", subject: userInput }); } 
+                else {
+                    const botResponse = "I'm not sure. Try asking for a summary, career ideas, or course recommendations.";
+                    addBotMessage(botResponse);
+                    appState.conversations[appState.activeChatId].push({ sender: 'bot', text: botResponse });
+                    saveState();
+                }
+            });
+            function callApi(endpoint, payload) {
+                const botMessageDiv = addBotMessage('', true);
+                fetch(endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                })
+                .then(res => res.json())
+                .then(data => {
+                    const contentKey = Object.keys(data)[0];
+                    const responseText = data[contentKey] || 'Sorry, I had trouble getting a response.';
+                    botMessageDiv.innerHTML = marked.parse(responseText);
+                    appState.conversations[appState.activeChatId].push({ sender: 'bot', text: responseText });
+                    saveState();
+                    highlightCode(botMessageDiv);
+                });
+            }
+            function highlightCode(element) {
+                element.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                    const pre = block.parentElement;
+                    if (pre.querySelector('.copy-btn')) return;
+                    const copyBtn = document.createElement('button');
+                    copyBtn.className = 'copy-btn'; copyBtn.textContent = 'Copy';
+                    copyBtn.onclick = () => { navigator.clipboard.writeText(block.textContent); copyBtn.textContent = 'Copied!'; setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000); };
+                    pre.appendChild(copyBtn);
+                });
+            }
+            loadApp();
+        });
+    </script>
+</body>
+</html>

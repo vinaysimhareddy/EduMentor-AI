@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - EduMentor AI</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root { --primary-color: #6a5acd; --background-color: #f0f2f5; --text-color: #333; --card-bg: #ffffff; --border-radius: 12px; --shadow: 0 8px 30px rgba(0, 0, 0, 0.07); }
+        body { font-family: 'Inter', sans-serif; background-color: var(--background-color); margin: 0; }
+        .header { background-color: var(--card-bg); padding: 15px 40px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .header h1 { font-size: 24px; color: var(--primary-color); margin: 0; }
+        .header .nav-links a { color: var(--text-color); text-decoration: none; font-weight: 500; margin-left: 25px; }
+        .header .nav-links a.cta-button { background-color: var(--primary-color); color: white; padding: 10px 20px; border-radius: 8px; }
+        .container { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+        .container h2 { font-size: 32px; margin-bottom: 30px; text-align: center; }
+        .roadmap-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .roadmap-card { background: var(--card-bg); border-radius: var(--border-radius); box-shadow: var(--shadow); padding: 25px; transition: transform 0.3s; display: block; text-decoration: none; color: inherit; }
+        .roadmap-card:hover { transform: translateY(-5px); }
+        .roadmap-card h3 { margin-top: 0; }
+        .roadmap-card p { color: #555; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>EduMentor AI Dashboard</h1>
+        <div class="nav-links">
+            <a href="/chat">General AI Assistant</a>
+            <a href="/logout" class="cta-button">Logout</a>
+        </div>
+    </header>
+    <main class="container">
+        <h2>Choose Your Learning Path</h2>
+        <div class="roadmap-grid">
+            <a href="/course/web-dev" class="roadmap-card">
+                <h3>Full Stack Web Development</h3>
+                <p>Master frontend and backend technologies to build complete web applications.</p>
+            </a>
+            <a href="/course/ml-eng" class="roadmap-card">
+                <h3>Machine Learning Engineer</h3>
+                <p>Dive into data science, algorithms, and neural networks to build intelligent systems.</p>
+            </a>
+            <a href="/course/devops" class="roadmap-card">
+                <h3>Cloud & DevOps Engineer</h3>
+                <p>Learn to deploy, manage, and scale applications using AWS/GCP and CI/CD pipelines.</p>
+            </a>
+            <a href="/course/cybersecurity" class="roadmap-card">
+                <h3>Cybersecurity Analyst</h3>
+                <p>Understand network security, ethical hacking, and threat analysis to protect digital assets.</p>
+            </a>
+            <a href="/course/ui-ux" class="roadmap-card">
+                <h3>UI/UX Design</h3>
+                <p>Focus on user-centric design principles, wireframing, and prototyping for intuitive products.</p>
+            </a>
+            <a href="/course/data-analyst" class="roadmap-card">
+                <h3>Data Analyst</h3>
+                <p>Turn raw data into actionable insights using SQL, Python, and data visualization tools.</p>
+            </a>
+        </div>
+    </main>
+</body>
+</html>
